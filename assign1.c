@@ -7,7 +7,7 @@
 int main(int argc, char *argv[]) {
 
 	int n = 4;
-
+        int test =3;
 	int rank, nproc, ndims, p1, p2;
 	int dims[2], coords[2], cyclic[2], reorder;
 	MPI_Comm proc_grid, proc_row, proc_col;
