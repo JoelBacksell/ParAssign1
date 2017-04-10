@@ -7,10 +7,11 @@
 int main(int argc, char *argv[]) {
 
 	int n = 4;
-        int test =3;
 	int rank, nproc, ndims, p1, p2;
 	int dims[2], coords[2], cyclic[2], reorder;
 	MPI_Comm proc_grid, proc_row, proc_col;
+
+	double *tempB,*tempA;
 
 	MPI_Init(&argc, &argv);
 	MPI_Comm_size(MPI_COMM_WORLD, &nproc);
@@ -47,10 +48,25 @@ int main(int argc, char *argv[]) {
 	MPI_Type_vector(r1, r2, n, MPI_DOUBLE, &vec_type);
 	MPI_Type_commit(&vec_type);
 
+
+	int row_rank,column_rank,row_size,column_size;
+	 // Create a communicator for each row
+  	
+  	MPI_Comm_rank(proc_row,&row_rank);
+  	MPI_Comm_size(proc_row,&row_size);
+
+  	// Create a communicator for each column
+  	
+  	MPI_Comm_rank(proc_col,&column_rank);
+    MPI_Comm_size(proc_col,&column_size);
+
+	
+
 	if (rank == 0) {
-		double *matrixA, *matrixB;
+		double *matrixA, *matrixB,* matrixC;
 		matrixA = malloc(n * n * sizeof(double));
 		matrixB = malloc(n * n * sizeof(double));
+		matrixC = malloc(n * n * sizeof(double));
 
 		int i, j;
 		time_t t;
@@ -96,9 +112,10 @@ int main(int argc, char *argv[]) {
 
 	}
 
-	double *my_blockA, *my_blockB;
+	double *my_blockA, *my_blockB,*my_blockC;
 	my_blockA = malloc(r1 * r2 * sizeof(double));
 	my_blockB = malloc(r1 * r2 * sizeof(double));
+	my_blockC = malloc(r1 * r2 * sizeof(double));
 
 	int my_rank;
 	MPI_Cart_rank(proc_grid, coords, &my_rank);
@@ -110,10 +127,23 @@ int main(int argc, char *argv[]) {
 	printf("A: %4f\n", my_blockA[0]);
 	printf("B: %4f\n", my_blockB[0]);
 
+
+
+	tempA=(double*)calloc(r1*r1,sizeof(double));
+	tempB=(double*)calloc(r1*r1,sizeof(double));
+
+
 	int k;
 	for (k = 0; k < p1; k++) {
 		int m = (coords[0] + k) % p1;
-		MPI_Bcast(&my_blockA, r1 * r2, MPI_DOUBLE, m, proc_row);
+		if (row_rank==m){
+			MPI_Bcast(my_blockA, r1 * r2, MPI_DOUBLE, m, proc_row);
+		}
+		else {
+			MPI_Bcast(tempB, r1 * r2, MPI_DOUBLE, m, proc_row);
+			
+
+		}
 		
 	}
 
