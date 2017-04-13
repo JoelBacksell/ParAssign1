@@ -1,7 +1,7 @@
 TARGET = FOX
 LIBS = -lm -lmpi
 CC = mpicc
-CFLAGS = -g -Wall
+CFLAGS = -g -O3
 
 .PHONY: default all clean
 

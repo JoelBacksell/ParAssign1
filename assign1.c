@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Time variable
-	double t;
+	double time_measure;
 
 	// Variables for Cartesian topology processor grid
 	int ndims, p1, p2;
@@ -58,6 +58,9 @@ int main(int argc, char *argv[]) {
 
 	// MPI status variable
 	MPI_Status status;
+
+	// Matrices A and B to be multiplied and result matrix C
+	double *matrixA, *matrixB, *matrixC;
 
 	// Blocks local to each processor
 	double *my_blockA, *my_blockB, *my_blockC, *tempA, *tempB;	
@@ -95,28 +98,25 @@ int main(int argc, char *argv[]) {
 
 	// Create a communicator for each row
 	MPI_Comm_split(proc_grid, coords[0], coords[1], &proc_row);
-  	MPI_Comm_rank(proc_row, &row_rank);
-  	MPI_Comm_size(proc_row, &row_size);
+   	MPI_Comm_rank(proc_row, &row_rank);
+   	MPI_Comm_size(proc_row, &row_size);
 
-  	// Create a communicator for each column
+   	// Create a communicator for each column
 	MPI_Comm_split(proc_grid, coords[1], coords[0], &proc_col);
-  	MPI_Comm_rank(proc_col, &column_rank);
+   	MPI_Comm_rank(proc_col, &column_rank);
     MPI_Comm_size(proc_col, &column_size);
 
 	// Create new vector type to contain blocks
 	MPI_Type_vector(r1, r2, n, MPI_DOUBLE, &vec_type);
 	MPI_Type_commit(&vec_type);
-
-	// Result matrix
-	double *matrixC;	
-
+	
 	// First process handles data generation
 	if (rank == 0) {
+	
 		// Allocate for multiplication matrices A and B and result matrix C
-		double *matrixA, *matrixB;
-		matrixA = malloc(n * n * sizeof(double));
-		matrixB = malloc(n * n * sizeof(double));
-		matrixC = malloc(n * n * sizeof(double));
+		matrixA = calloc(n * n, sizeof(double));
+		matrixB = calloc(n * n, sizeof(double));
+		matrixC = calloc(n * n, sizeof(double));
 
 		int i, j;
 		time_t t;
@@ -126,10 +126,9 @@ int main(int argc, char *argv[]) {
 		for (i = 0; i < n * n; i++) {
 			matrixA[i] = (double) rand() / RAND_MAX;
 			matrixB[i] = (double) rand() / RAND_MAX;
-			//matrixA[i] = i;
-			//matrixB[i] = i;
 		}
 
+		// Print to check matrices A and B (for small test runs)
 		// printf("Matrix A:\n");
 		// for (i = 0; i < n * n; i++) {
 		// 	printf("%f, ", matrixA[i]);
@@ -141,7 +140,8 @@ int main(int argc, char *argv[]) {
 		// }
 		// printf("\n");
 
-		//t = timer();
+		// Start time measurement
+		time_measure = timer();
 
 		// Run through grid and distribute blocks
 		for (i = 0; i < p1; i++) {
@@ -150,20 +150,14 @@ int main(int argc, char *argv[]) {
 				int loc[2] = {i, j};
 				MPI_Cart_rank(proc_grid, loc, &grid_rank);
 				MPI_Isend(&matrixA[i * r1 * n + j * r2], 1, vec_type, grid_rank, grid_rank, proc_grid, &send_request);
-				MPI_Wait(&send_request, &status);
 				MPI_Isend(&matrixB[i * r1 * n + j * r2], 1, vec_type, grid_rank, grid_rank, proc_grid, &send_request);
-				MPI_Wait(&send_request, &status);
 			}
 		}
-		// Free memory
-		free(matrixA);
-		free(matrixB);
-
 	}
 
 	// Allocate room for my blocks
-	my_blockA = malloc(r1 * r2 * sizeof(double));
-	my_blockB = malloc(r1 * r2 * sizeof(double));
+	my_blockA = calloc(r1 * r2, sizeof(double));
+	my_blockB = calloc(r1 * r2, sizeof(double));
 	my_blockC = calloc(r1 * r2, sizeof(double));
 
 	// Receive my blocks from first process
@@ -171,12 +165,8 @@ int main(int argc, char *argv[]) {
 	MPI_Recv(my_blockB, r1 * r2, MPI_DOUBLE, 0, my_rank, proc_grid, &status);
 
 	// Allocate for intermediate storage
-	tempA = malloc(r1 * r2 * sizeof(double));
-	tempB = malloc(r1 * r2 * sizeof(double));
-
-	if (rank == 0) {
-		t = timer();
-	}
+	tempA = calloc(r1 * r2, sizeof(double));
+	tempB = calloc(r1 * r2, sizeof(double));
 
 	// Run Fox's algorithm
 	int k, row, col, l;
@@ -213,15 +203,6 @@ int main(int argc, char *argv[]) {
 		memcpy(my_blockB, tempB, r1 * r2 * sizeof(double));
 	}
 
-	// if (rank == 0) {
-	// 	int i;
-	// 	printf("my_blockC:\n");
-	// 	for (i = 0; i < p1 * p2; i++) {
-	// 		printf("%f, ", my_blockC[i]);
-	// 	}
-	// 	printf("\n");
-	// }
-
 	// Send my C block to first process
 	MPI_Isend(my_blockC, r1 * r2, MPI_DOUBLE, 0, my_rank, proc_grid, &send_request);
 
@@ -238,11 +219,13 @@ int main(int argc, char *argv[]) {
 	}
 	MPI_Wait(&send_request, &status);
 
+	// Stop and print time measurement
 	if (rank == 0) {
-		t = timer() - t;
-		printf("Time: %f s\n", t);
+		time_measure = timer() - time_measure;
+		printf("Time: %f s\n", time_measure);
 	}
 
+	// Print to check matrix C (for small test runs)
 	// if (rank == 0) {
 	// 	int i;
 	// 	printf("Matrix C:\n");
@@ -253,6 +236,11 @@ int main(int argc, char *argv[]) {
 	// }
 	
 	// Free memory
+	if (rank == 0) {
+		free(matrixA);
+		free(matrixB);
+		free(matrixC);
+	}
 	free(my_blockA);
 	free(my_blockB);
 	free(my_blockC);
