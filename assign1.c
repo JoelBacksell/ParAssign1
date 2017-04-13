@@ -31,16 +31,16 @@ int main(int argc, char *argv[]) {
 	MPI_Comm_size(MPI_COMM_WORLD, &nproc);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-	int matrix_size;	
+	int n;
 
 	// Set size of matrix to command line argument
 	if (argc != 2) {
 		if (rank == 0)
 			printf("Usage: %s size-of-matrix\n", argv[0]);
-			MPI_Finalize();
+		MPI_Finalize();
 		return 0;
 	} else {
-		matrix_size = atoi(argv[1]);
+		n = atoi(argv[1]);
 	}
 
 	// Time variable
@@ -80,8 +80,8 @@ int main(int argc, char *argv[]) {
 	reorder = 1;
 
 	// Set sizes of blocks
-	int r1 = matrix_size / p1;
-	int r2 = matrix_size / p2;
+	int r1 = n / p1;
+	int r2 = n / p2;
 
 	// Create Cartesian grid
 	MPI_Cart_create(MPI_COMM_WORLD, ndims, dims, cyclic, reorder, &proc_grid);
@@ -107,40 +107,29 @@ int main(int argc, char *argv[]) {
     MPI_Comm_size(proc_col, &column_size);
 
 	// Create new vector type to contain blocks
-	MPI_Type_vector(r1, r2, matrix_size, MPI_DOUBLE, &vec_type);
+	MPI_Type_vector(r1, r2, n, MPI_DOUBLE, &vec_type);
 	MPI_Type_commit(&vec_type);
 	
 	// First process handles data generation
 	if (rank == 0) {
 	
 		// Allocate for multiplication matrices A and B and result matrix C
-<<<<<<< HEAD
 		matrixA = calloc(n * n, sizeof(double));
 		matrixB = calloc(n * n, sizeof(double));
 		matrixC = calloc(n * n, sizeof(double));
-=======
-		double *matrixA, *matrixB;
-		matrixA = malloc(matrix_size * matrix_size * sizeof(double));
-		matrixB = malloc(matrix_size * matrix_size * sizeof(double));
-		matrixC = malloc(matrix_size * matrix_size * sizeof(double));
->>>>>>> 0063760893438f90187137f0236cabb2084f00e6
 
 		int i, j;
 		time_t t;
 		srand(time(&t));
 
 		// Fill matrices A and B with random numbers
-		for (i = 0; i < matrix_size * matrix_size; i++) {
+		for (i = 0; i < n * n; i++) {
 			matrixA[i] = (double) rand() / RAND_MAX;
 			matrixB[i] = (double) rand() / RAND_MAX;
 		}
 
-<<<<<<< HEAD
 		// Print to check matrices A and B (for small test runs)
 		// printf("Matrix A:\n");
-=======
-		// printf("Matrix A:\matrix_size");
->>>>>>> 0063760893438f90187137f0236cabb2084f00e6
 		// for (i = 0; i < n * n; i++) {
 		// 	printf("%f, ", matrixA[i]);
 		// }
@@ -160,15 +149,8 @@ int main(int argc, char *argv[]) {
 				int grid_rank;
 				int loc[2] = {i, j};
 				MPI_Cart_rank(proc_grid, loc, &grid_rank);
-<<<<<<< HEAD
 				MPI_Isend(&matrixA[i * r1 * n + j * r2], 1, vec_type, grid_rank, grid_rank, proc_grid, &send_request);
 				MPI_Isend(&matrixB[i * r1 * n + j * r2], 1, vec_type, grid_rank, grid_rank, proc_grid, &send_request);
-=======
-				MPI_Isend(&matrixA[i * r1 * matrix_size + j * r2], 1, vec_type, grid_rank, grid_rank, proc_grid, &send_request);
-				MPI_Wait(&send_request, &status);
-				MPI_Isend(&matrixB[i * r1 * matrix_size + j * r2], 1, vec_type, grid_rank, grid_rank, proc_grid, &send_request);
-				MPI_Wait(&send_request, &status);
->>>>>>> 0063760893438f90187137f0236cabb2084f00e6
 			}
 		}
 	}
@@ -232,7 +214,7 @@ int main(int argc, char *argv[]) {
 			MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, proc_grid, &stat);
 			int loc[2];
 			MPI_Cart_coords(proc_grid, stat.MPI_SOURCE, ndims, loc);
-			MPI_Recv(&matrixC[loc[0] * r1 * matrix_size + loc[1] * r2], 1, vec_type, stat.MPI_SOURCE, stat.MPI_TAG, proc_grid, &status);
+			MPI_Recv(&matrixC[loc[0] * r1 * n + loc[1] * r2], 1, vec_type, stat.MPI_SOURCE, stat.MPI_TAG, proc_grid, &status);
 		}
 	}
 	MPI_Wait(&send_request, &status);
