@@ -45,6 +45,7 @@ int main(int argc, char *argv[]) {
 
 	// Time variable
 	double time_measure;
+	clock_t mpi_start_time;
 
 	// Variables for Cartesian topology processor grid
 	int ndims, p1, p2;
@@ -142,6 +143,7 @@ int main(int argc, char *argv[]) {
 
 		// Start time measurement
 		time_measure = timer();
+		mpi_start_time = MPI_Wtime();
 
 		// Run through grid and distribute blocks
 		for (i = 0; i < p1; i++) {
@@ -222,6 +224,8 @@ int main(int argc, char *argv[]) {
 	// Stop and print time measurement
 	if (rank == 0) {
 		time_measure = timer() - time_measure;
+		double mpi_time_measure=MPI_Wtime()-mpi_start_time; 
+		printf("MPI Wall time is: %f seconds\n",mpi_time_measure);
 		printf("Time: %f s\n", time_measure);
 	}
 
@@ -241,6 +245,10 @@ int main(int argc, char *argv[]) {
 		free(matrixB);
 		free(matrixC);
 	}
+
+	
+	
+
 	free(my_blockA);
 	free(my_blockB);
 	free(my_blockC);
